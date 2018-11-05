@@ -1,0 +1,205 @@
+#!/bin/sh
+
+#  Copyright (C) 2013-2014 Curt Brune <curt@cumulusnetworks.com>
+#  Copyright (C) 2016 david_yang <david_yang@accton.com>
+#
+#  SPDX-License-Identifier:     GPL-2.0
+
+##
+## Try to install the URL given on the command line
+##
+
+. /lib/onie/functions
+
+import_cmdline
+
+if [ "$onie_boot_reason" != "install" -a \
+    "$onie_boot_reason" != "rescue" ] ; then
+    log_failure_msg "$0: NOS install unavailable in current ONIE mode: $onie_boot_reason"
+    printf "$0: this operation is available in 'install' and 'rescue' modes only.\n"
+    return 1
+fi
+
+
+##
+## Asterfusion install command
+## 1.add a command line
+## 2. update machine.conf by user input
+##
+
+usage() { echo "
+usage:
+$0 
+    [-t -type < cloud | packet >]
+    [-a -asic < cavium | broadcom >]
+    </url>
+
+exp: $0 -t cloud -a cavium http://192.168.1.1
+    " 1>&2; exit 1;  }
+
+# open echo for test shell
+open_echo=
+
+vender_name=asterfusion
+onie_arch=x86_64
+product_name=x306p
+product_type=48t
+
+
+check=$(echo $1 | grep "t")
+if [ "$check" != ""  ]
+then
+	set -- $(getopt  :t:a: "$@")
+    while [ -n "$1" ]
+    do
+        case "$1" in
+            -t) param="$2"
+                if [ $param = cloud ];then
+                    # echo "Found the -t option,with paramter value $param"
+                        platform_type="c"
+                else
+                    if [ $param = packet ];then
+                    #     echo "Found the -t option,with paramter value $param"
+                        platform_type="p"
+                    else
+                        usage
+                    fi
+                fi
+                # echo $platform_type
+                shift
+                ;;
+    
+            -a) param="$2"
+                if [ $param = cavium ];then
+                   #  echo "Found the -t option,with paramter value $param"
+                    onie_switch_asic=$param
+                else
+                    if [ $param = broadcom ];then
+                   #      echo "Found the -t option,with paramter value $param"
+                    onie_switch_asic=$param
+                    else
+                        usage
+                    fi
+                fi
+                # echo $asic
+                shift
+                ;;
+    
+            --) shift
+                break
+                ;;
+             *) echo "$1 is not an option";;
+        esac
+        shift
+
+    done
+
+    # update onie_machine
+    onie_machine_line_number=$( ( (awk -F '=' '{print $1} ' /etc/machine.conf ) | grep -nw onie_machine )| awk -F ':' '{print $1}')
+    [ -n "$open_echo" ] && echo $onie_machine_line_number
+    onie_machine="$vender_name"_"$product_name"_"$product_type"
+    [ -n "$open_echo" ] && echo $onie_machine
+
+    if [ $onie_machine_line_number > 0 ]
+    then
+        sed   -i "$onie_machine_line_number d" /etc/machine.conf
+        # onie_machine_line_number_add=$[ onie_machine_line_number - 1 ]
+        onie_machine_line_number_add=`expr $onie_machine_line_number - 1`
+
+        [ -n "$open_echo" ] && echo $onie_machine_line_number_add
+        sed      "$onie_machine_line_number_add aonie_machine="$vender_name"_"$product_name"_"$product_type""  -i /etc/machine.conf
+    else
+        echo   "Could not find onie machine in /etc/machine.conf"
+    fi
+
+    # update onie_platform
+    onie_platform_line_number=$( ( (awk -F '=' '{print $1} ' /etc/machine.conf ) | grep -nw onie_platform )| awk -F ':' '{print $1}')
+    [ -n "$open_echo" ] && echo $onie_platform_line_number
+    onie_platform="$onie_arch"-"$vender_name"_"$platform_type""$product_name"_"$product_type"-r0
+    [ -n "$open_echo" ] && echo $onie_platform
+
+    if [ $onie_platform_line_number > 0 ]
+    then
+        sed   -i "$onie_platform_line_number d" /etc/machine.conf
+        # onie_platform_line_number_add=$[ onie_platform_line_number - 1 ]
+        onie_platform_line_number_add=`expr $onie_platform_line_number - 1`
+        [ -n "$open_echo" ] && echo $onie_platform_line_number_add
+        sed      "$onie_platform_line_number_add aonie_platform="$onie_arch"-"$vender_name"_"$platform_type""$product_name"_"$product_type"-r0"  -i /etc/machine.conf
+    else
+        echo   "could not find onie_platform in /etc/machine.conf"
+    fi
+
+    # update onie_switch_asic
+    onie_switch_asic_line_number=$( ( (awk -F '=' '{print $1} ' /etc/machine.conf ) | grep -nw onie_switch_asic )| awk -F ':' '{print $1}')
+    [ -n "$open_echo" ] && echo $onie_switch_asic_line_number
+    [ -n "$open_echo" ] && echo $onie_switch_asic
+
+    if [ $onie_switch_asic_line_number > 0 ]
+    then
+        sed   -i "$onie_switch_asic_line_number d" /etc/machine.conf
+        # onie_switch_asic_line_number_add=$[ onie_switch_asic_line_number - 1 ]
+        onie_switch_asic_line_number_add=`expr $onie_switch_asic_line_number - 1`
+        [ -n "$open_echo" ] && echo $onie_switch_asic_line_number_add
+        sed      "$onie_switch_asic_line_number_add aonie_switch_asic=$onie_switch_asic"  -i /etc/machine.conf
+    else
+        echo   "could not find onie_switch_asic in /etc/machine.conf"
+    fi
+
+
+
+    curl=$*
+
+    [ -n "$open_echo" ] && echo $1
+
+    result=$(echo $1 | grep "/")
+    if [ "$result" != "" ]
+    then
+        [ -n "$open_echo" ] && echo "$curl/"$onie_arch"-"$vender_name"-"$platform_type""$product_name"-"$product_type".bin"
+    else
+        usage
+    fi
+
+else
+    usage
+fi
+
+asternos="$curl/"$onie_arch"-"$vender_name"-"$platform_type""$product_name"-"$product_type".bin"
+echo $asternos
+echo $@
+
+
+
+
+##
+## orignal install asternos.bin
+##
+
+cli_static_url=$asternos
+
+[ -n "$cli_static_url" ] || {
+    echo "Error: Installer URL not specified."
+    echo "Usage: $0 <URL> [<INSTALLER_ARGS>]"
+    echo "  URL types:   http, ftp, tftp"
+    exit 1
+}
+
+shift 1
+cli_static_parms="$@"
+
+onie_disco=
+onie_disco=$(add_parm "$onie_disco" onie_cli_static_url $cli_static_url)
+onie_disco=$(add_parm "$onie_disco" onie_cli_static_parms "$cli_static_parms")
+
+# stop discovery engine
+/etc/init.d/discover.sh stop > /dev/null 2>&1
+sleep 1
+
+install_parms_file="/tmp/.install_url_parms"
+echo "$onie_disco" > $install_parms_file
+exec_installer $install_parms_file
+rm -f $install_parms_file
+
+# Local Variables:
+# mode: shell-script
+# eval: (sh-set-shell "/bin/sh" t nil)
+# End:

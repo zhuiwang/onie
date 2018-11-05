@@ -1,0 +1,91 @@
+#!/bin/sh
+
+lspci > /tmp/pci.log
+switch_vender_id=$( (awk -F ' "' '{print $3} ' /tmp/pci.log | sed 's/"//g' ) | grep 177d )
+#echo $switch_vender_id
+
+if [ "$switch_vender_id" = "177d" ]
+then
+    switch_vender="cavium"
+    #echo $switch_vender
+    #echo $switch_vender_id
+    line_number=$( ( (awk -F ' "' '{print $3} ' /tmp/pci.log | sed 's/"//g' ) | grep -n 177d )| awk -F ':' '{print $1}')
+    #echo $line_number
+    switch_device_id_new=$( awk -v n=$line_number -F ' "' 'NR==n{print $4}'  /tmp/pci.log | sed 's/"//g' )
+    #echo $switch_device_id_new
+
+    case $switch_device_id_new in
+        f000)
+            switch_device_type="CNX88091_A0"
+            echo "$switch_vender $switch_device_type"
+            ;;
+        f008)
+            switch_device_type="CNX88091_B0"
+            echo "$switch_vender $switch_device_type"
+            ;;
+        f009)
+            switch_device_type="CNX88072_B0"
+            echo "$switch_vender $switch_device_type"
+            ;;
+        f00a)
+            switch_device_type="CNX88071_B0"
+            echo "$switch_vender $switch_device_type"
+            ;;
+        f00b)
+            switch_device_type="CNX88061_B0"
+            echo "$switch_vender $switch_device_type"
+            ;;
+        f00c)
+            switch_device_type="CNX88081_B0"
+            echo "$switch_vender $switch_device_type"
+            ;;
+        f00d)
+            switch_device_type="CNX88061C_B0"
+            echo "$switch_vender $switch_device_type"
+            ;;
+        f00e)
+            switch_device_type="CNX88072C_B0"
+            echo "$switch_vender $switch_device_type"
+            ;;
+        f010)
+            switch_device_type="CNX78072"
+            echo "$switch_vender $switch_device_type"
+            ;;
+        f011)
+            switch_device_type="CNX78061"
+            echo "$switch_vender $switch_device_type"
+            ;;
+        f012)
+            switch_device_type="CNX78056"
+            echo "$switch_vender $switch_device_type"
+            ;;
+        f013)
+            switch_device_type="CNX78028"
+            echo "$switch_vender $switch_device_type"
+            ;;
+        f014)
+            switch_device_type="CNX68072"
+            echo "$switch_vender $switch_device_type"
+            ;;
+        f016)
+            switch_device_type="CNX68056"
+            echo "$switch_vender $switch_device_type"
+            ;;
+        f017)
+            switch_device_type="CNX68028"
+            echo "$switch_vender $switch_device_type"
+            ;;
+        f018)
+            switch_device_type="CNX_XP100_A0"
+            echo "$switch_vender $switch_device_type"
+            ;;
+        *)
+            switch_device_type="unknow"
+            echo "$switch_vender unknow switch device type"
+            ;;
+    esac
+fi
+rm /tmp/pci.log
+
+
+
